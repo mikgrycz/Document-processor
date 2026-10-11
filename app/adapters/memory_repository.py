@@ -1,8 +1,8 @@
 """In-memory implementation of the JobRepository port.
 
-Suitable for development, tests, and this interview's timebox. Swapping in a
-durable store (e.g. Postgres) means implementing the same Protocol defined
-in app/ports/repository.py — no changes needed in JobService or above.
+Swapping in a durable store (e.g. Postgres) means implementing the same
+Protocol defined in app/ports/repository.py — no changes needed in
+JobService or above.
 """
 
 from __future__ import annotations
