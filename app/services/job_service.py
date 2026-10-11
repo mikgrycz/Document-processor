@@ -8,10 +8,19 @@ tests with fakes and reused behind any transport.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 
 from app.domain.models import Job, Operation
+from app.observability.logging import get_logger
+from app.observability.metrics import jobs_submitted_total
 from app.ports.queue import JobQueue
 from app.ports.repository import JobRepository
+
+logger = get_logger(__name__)
+
+
+def _hash_key(key: str) -> str:
+    return hashlib.sha256(key.encode()).hexdigest()[:12]
 
 
 class IdempotencyConflictError(Exception):
@@ -59,7 +68,11 @@ class JobService:
                 existing = await self._repository.get_by_idempotency_key(idempotency_key)
                 if existing is not None:
                     if existing.document_url != document_url or existing.operation != operation:
+                        logger.warning(
+                            "idempotency_conflict", idempotency_key_hash=_hash_key(idempotency_key)
+                        )
                         raise IdempotencyConflictError(idempotency_key)
+                    logger.info("job_submit_replayed", job_id=existing.id)
                     return existing, False
 
             job = Job(
@@ -69,6 +82,8 @@ class JobService:
             )
             await self._repository.add(job)
             await self._queue.enqueue(job.id)
+            jobs_submitted_total.labels(operation=operation.value).inc()
+            logger.info("job_submitted", job_id=job.id, operation=operation.value)
             return job, True
 
     async def get(self, job_id: str) -> Job | None:
