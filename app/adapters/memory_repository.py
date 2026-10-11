@@ -7,7 +7,7 @@ in app/ports/repository.py — no changes needed in JobService or above.
 
 from __future__ import annotations
 
-from app.domain.models import Job
+from app.domain.models import Job, JobStatus
 
 
 class InMemoryJobRepository:
@@ -31,3 +31,10 @@ class InMemoryJobRepository:
 
     async def update(self, job: Job) -> None:
         self._jobs[job.id] = job
+
+    async def list_active(self) -> list[Job]:
+        return [
+            job
+            for job in self._jobs.values()
+            if job.status in (JobStatus.QUEUED, JobStatus.RUNNING)
+        ]

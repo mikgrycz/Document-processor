@@ -10,7 +10,7 @@ import asyncio
 import logging
 
 from app.domain.errors import PermanentProcessingError, TransientProcessingError
-from app.domain.models import Job
+from app.domain.models import Job, JobStatus
 from app.ports.fetcher import DocumentFetcher
 from app.ports.queue import JobQueue
 from app.ports.repository import JobRepository
@@ -44,6 +44,18 @@ class Worker:
         while True:
             job_id = await self._queue.dequeue()
             await self.process_one(job_id)
+
+    async def resync(self) -> None:
+        """Re-enqueue jobs left queued or running by a previous process.
+
+        Running jobs are reset to queued first, since no worker is
+        actually processing them anymore.
+        """
+        for job in await self._repository.list_active():
+            if job.status is JobStatus.RUNNING:
+                job.retry("resynced after restart")
+                await self._repository.update(job)
+            await self._queue.enqueue(job.id)
 
     async def process_one(self, job_id: str) -> None:
         """Process a single job id to a terminal or requeued state."""
