@@ -27,3 +27,7 @@ class JobRepository(Protocol):
     async def update(self, job: Job) -> None:
         """Persist changes made to an existing job."""
         ...
+
+    async def list_active(self) -> list[Job]:
+        """Return jobs that are queued or running (not yet terminal)."""
+        ...
