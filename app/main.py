@@ -12,8 +12,11 @@ from app.adapters.http_fetcher import HttpDocumentFetcher
 from app.adapters.memory_queue import InMemoryJobQueue
 from app.adapters.memory_repository import InMemoryJobRepository
 from app.api.health import router as health_router
+from app.api.metrics import router as metrics_router
 from app.api.routers import router as jobs_router
 from app.config import settings
+from app.observability.logging import configure_logging
+from app.observability.middleware import RequestIdMiddleware
 from app.services.job_service import JobService
 from app.services.worker import Worker
 
@@ -44,7 +47,10 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    configure_logging(settings.log_level)
+
     application = FastAPI(title="Document Processor", version="0.1.0", lifespan=lifespan)
+    application.add_middleware(RequestIdMiddleware)
 
     repository = InMemoryJobRepository()
     queue = InMemoryJobQueue()
@@ -55,6 +61,7 @@ def create_app() -> FastAPI:
 
     application.include_router(jobs_router)
     application.include_router(health_router)
+    application.include_router(metrics_router)
     return application
 
 
